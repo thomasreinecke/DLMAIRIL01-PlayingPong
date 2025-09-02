@@ -21,6 +21,6 @@ value_loss_coef: 0.5
 entropy_coef: 0.01
 normalize_advantages: true
 
-# Evaluation parameters
-eval_freq_frames: 50000
+# Evaluation & Checkpointing
+eval_freq_frames: 25000 # Evaluate and checkpoint every x frames
 eval_episodes: 30

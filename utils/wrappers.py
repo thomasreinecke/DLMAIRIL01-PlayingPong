@@ -6,18 +6,15 @@ from gymnasium.wrappers.atari_preprocessing import AtariPreprocessing
 from gymnasium.wrappers.frame_stack import FrameStack
 
 
-def make_env(env_id: str, seed: int, render_mode: str = None):
+def make_env(env_id: str, seed: int, render_mode: str = None, sticky_actions_prob: float = 0.25):
     """
     Create and wrap the Atari environment.
 
-    Applies a standard stack of wrappers for Atari experiments:
-    - RecordEpisodeStatistics for episodic return/length
-    - AtariPreprocessing for grayscale and 84x84 resize
-      NOTE: We set frame_skip=1 here because ALE/Pong-v5 already applies frameskip internally.
-    - TransformReward to clip rewards to [-1, 1]
-    - FrameStack with 4 frames (channel-first in Gymnasium)
+    Applies a standard stack of wrappers for Atari experiments.
     """
-    env = gym.make(env_id, render_mode=render_mode)
+    # NOTE: The v5 environments (e.g., ALE/Pong-v5) have sticky actions with p=0.25 by default.
+    # To change this, we must pass the `repeat_action_probability` argument.
+    env = gym.make(env_id, render_mode=render_mode, repeat_action_probability=sticky_actions_prob)
 
     # Seeding
     env.action_space.seed(seed)

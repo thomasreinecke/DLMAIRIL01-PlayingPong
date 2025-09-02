@@ -10,6 +10,8 @@ tensorboard==2.16.2
 gymnasium[atari,accept-rom-license]==0.29.1
 # The Arcade Learning Environment (ALE) backend for Atari games
 ale-py==0.8.1
+# OpenCV is a required dependency for Gymnasium's AtariPreprocessing wrapper
+opencv-python==4.9.0.80
 
 # -- Data Handling & Utilities --
 # Pandas for data analysis (used in notebook)

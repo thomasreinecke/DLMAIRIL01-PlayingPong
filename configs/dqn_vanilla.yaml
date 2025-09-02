@@ -25,6 +25,6 @@ epsilon_end: 0.1
 epsilon_decay_frames: 1000000
 learning_starts: 50000 # Number of frames to populate replay buffer before learning
 
-# Evaluation parameters
-eval_freq_frames: 50000
+# Evaluation & Checkpointing
+eval_freq_frames: 25000 # Evaluate and checkpoint every x frames
 eval_episodes: 30

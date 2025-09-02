@@ -1,125 +1,70 @@
 # utils/logger.py
 import csv
 import os
-from typing import Any, Dict
+import fcntl  # For file locking on Unix-like systems
+from typing import Dict, Any
 
 from torch.utils.tensorboard import SummaryWriter
-import yaml
 
-
-class Logger:
+class CentralLogger:
     """
-    Lightweight logger that writes:
-      - TensorBoard scalars (no add_hparams to avoid NumPy 2.0 issues).
-      - A human-readable hparams YAML (hparams.yaml) and a TB text entry.
-      - Optional CSV dump of logged scalars via write_log().
+    Manages a single, unified CSV file for all experiment results,
+    and also writes to a run-specific TensorBoard log directory.
     """
 
-    def __init__(self, log_dir: str):
-        self.log_dir = log_dir
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.writer = SummaryWriter(self.log_dir)
-        self._buffer = []  # list[dict]: {"step": int, "tag": str, "value": float}
-        self._csv_path = os.path.join(self.log_dir, "metrics.csv")
+    def __init__(self, csv_filepath="results.csv", tensorboard_log_dir: str = None):
+        self.csv_filepath = csv_filepath
+        self.lock_path = csv_filepath + ".lock"
+        
+        # Setup TensorBoard writer if a directory is provided
+        self.writer = SummaryWriter(log_dir=tensorboard_log_dir) if tensorboard_log_dir else None
+        
+        self.headers = [
+            # Core Columns
+            'agent_name', 'seed', 'environment_frame', 'wall_clock_time_seconds', 'fps',
+            'eval_mean_return', 'eval_std_return',
+            # DQN-Specific
+            'epsilon', 'q_learning_loss', 'mean_q_value',
+            # PPO-Specific
+            'policy_loss', 'value_loss', 'entropy', 'approx_kl',
+            # Robustness
+            'robustness_eval_p0.0_return', 'robustness_eval_p0.5_return',
+        ]
 
-    # ----------------------------
-    # Hyperparameters
-    # ----------------------------
-    def log_hyperparams(self, hparams: Dict[str, Any]) -> None:
-        """
-        Store hyperparameters in:
-          - log_dir/hparams.yaml
-          - TensorBoard as a text block ("hparams")
-        Avoids torch.utils.tensorboard.add_hparams to prevent NumPy 2.0 breakage.
-        """
-        # 1) Dump YAML file
-        hparams_yaml_path = os.path.join(self.log_dir, "hparams.yaml")
-        with open(hparams_yaml_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(_to_serializable(hparams), f, sort_keys=True, allow_unicode=True)
-
-        # 2) Also put them into TB as readable text
-        with open(hparams_yaml_path, "r", encoding="utf-8") as f:
-            text = f.read()
-        self.writer.add_text("hparams", f"```yaml\n{text}\n```", global_step=0)
-
-        # 3) Log numeric hparams individually as scalars at step 0
-        flat = _flatten_dict(hparams)
-        for k, v in flat.items():
-            if isinstance(v, (int, float, bool)):
-                self.writer.add_scalar(f"hparams/{k}", float(v) if isinstance(v, bool) else v, global_step=0)
-
-        self.writer.flush()
-
-    # ----------------------------
-    # Scalars
-    # ----------------------------
-    def log_scalar(self, tag: str, value: float, step: int) -> None:
-        self.writer.add_scalar(tag, value, step)
-        self._buffer.append({"step": step, "tag": tag, "value": float(value)})
-
-    # ----------------------------
-    # CSV flush
-    # ----------------------------
-    def write_log(self) -> None:
-        """Append buffered scalar logs to CSV (log_dir/metrics.csv)."""
-        if not self._buffer:
-            return
-
-        # Ensure deterministic ordering by (step, tag)
-        records = sorted(self._buffer, key=lambda r: (r["step"], r["tag"]))
-        self._buffer = []
-
-        header = ["step", "tag", "value"]
-        file_exists = os.path.exists(self._csv_path)
-        with open(self._csv_path, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=header)
-            if not file_exists:
+        # Create the CSV file with header if it doesn't exist
+        if not os.path.exists(self.csv_filepath):
+            with open(self.csv_filepath, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=self.headers)
                 writer.writeheader()
-            for r in records:
-                writer.writerow(r)
 
-    # ----------------------------
-    # Lifecycle
-    # ----------------------------
-    def flush(self) -> None:
-        """Flush TB writer (useful for periodic heartbeats)."""
-        self.writer.flush()
+    def log_metrics(self, data: Dict[str, Any], frame_idx: int):
+        """
+        Logs a dictionary of metrics to both the central CSV and TensorBoard.
+        """
+        # --- 1. Log to Central CSV ---
+        # Acquire a lock to prevent concurrent writes
+        with open(self.lock_path, "w") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            
+            # Create a full row, filling missing keys with None
+            row = {header: data.get(header) for header in self.headers}
+            
+            with open(self.csv_filepath, "a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=self.headers)
+                writer.writerow(row)
 
-    def close(self) -> None:
-        # Flush any pending CSV writes
-        self.write_log()
-        self.writer.flush()
-        self.writer.close()
-
-
-# ----------------------------
-# Helpers
-# ----------------------------
-def _flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = "/") -> Dict[str, Any]:
-    """Flatten nested dicts using 'parent/child' keys."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else str(k)
-        if isinstance(v, dict):
-            items.extend(_flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-
-def _to_serializable(obj: Any) -> Any:
-    """
-    Convert objects that may not be YAML-serializable (e.g., numpy types)
-    to plain Python types.
-    """
-    if isinstance(obj, dict):
-        return {str(k): _to_serializable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_to_serializable(x) for x in obj]
-    # Convert basic numpy / tensor-like scalars if they sneak in
-    try:
-        if hasattr(obj, "item"):
-            return obj.item()
-    except Exception:
-        pass
-    return obj
+            # Release the lock
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            
+        # --- 2. Log to TensorBoard ---
+        if self.writer:
+            for key, value in data.items():
+                # Only log numeric values to TensorBoard scalars
+                if isinstance(value, (int, float)):
+                    self.writer.add_scalar(f"metric/{key}", value, frame_idx)
+    
+    def close(self):
+        """Closes the TensorBoard writer."""
+        if self.writer:
+            self.writer.flush()
+            self.writer.close()
