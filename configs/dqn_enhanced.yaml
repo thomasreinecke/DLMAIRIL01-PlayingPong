@@ -1,0 +1,30 @@
+# configs/dqn_enhanced.yaml
+# Configuration for the Enhanced DQN agent (Double + Dueling)
+agent_name: dqn_enhanced
+algo: dqn
+
+# Model parameters
+dueling: true
+
+# Training parameters
+optimizer: Adam
+learning_rate: 0.0001
+gamma: 0.99
+batch_size: 32
+replay_buffer_size: 1000000
+target_update_freq: 10000 # In agent steps (parameter updates)
+gradient_clip_norm: 10.0
+huber_loss_delta: 1.0
+
+# Q-Learning parameters
+double_q: true
+
+# Exploration parameters
+epsilon_start: 1.0
+epsilon_end: 0.1
+epsilon_decay_frames: 1000000
+learning_starts: 50000 # Number of frames to populate replay buffer before learning
+
+# Evaluation parameters
+eval_freq_frames: 50000
+eval_episodes: 30

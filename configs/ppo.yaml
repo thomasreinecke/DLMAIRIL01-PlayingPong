@@ -1,0 +1,26 @@
+# configs/ppo.yaml
+# Configuration for the PPO agent
+agent_name: ppo
+algo: ppo
+
+# Model is shared Actor-Critic
+
+# Training parameters
+optimizer: Adam
+learning_rate: 0.00025
+gamma: 0.99
+gradient_clip_norm: 0.5
+
+# PPO specific parameters
+rollout_len: 2048 # Number of steps to collect per environment before updating
+num_update_epochs: 10
+num_minibatches: 32
+clip_coef: 0.1 # Corresponds to epsilon in the PPO paper
+gae_lambda: 0.95
+value_loss_coef: 0.5
+entropy_coef: 0.01
+normalize_advantages: true
+
+# Evaluation parameters
+eval_freq_frames: 50000
+eval_episodes: 30

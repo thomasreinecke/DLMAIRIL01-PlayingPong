@@ -1,0 +1,27 @@
+# requirements.txt
+# -- Core ML / RL Frameworks --
+# PyTorch for neural networks and optimization
+torch==2.3.0
+# TensorBoard for logging and visualization
+tensorboard==2.16.2
+
+# -- Environment & Simulation --
+# Gymnasium for the Reinforcement Learning environments
+gymnasium[atari,accept-rom-license]==0.29.1
+# The Arcade Learning Environment (ALE) backend for Atari games
+ale-py==0.8.1
+
+# -- Data Handling & Utilities --
+# Pandas for data analysis (used in notebook)
+pandas==2.2.2
+# PyYAML for parsing configuration files
+pyyaml==6.0.1
+# NumPy, pinned to <2.0 to avoid breaking API changes that affect TensorBoard
+numpy==1.26.4
+
+# -- Notebook & Analysis --
+# Jupyter for running the analysis notebook
+jupyter==1.0.0
+# Matplotlib and Seaborn for plotting results
+matplotlib==3.8.4
+seaborn==0.13.2
