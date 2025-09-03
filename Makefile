@@ -5,7 +5,7 @@ export PYTORCH_ENABLE_MPS_FALLBACK=1
 VENV = .venv
 SEEDS = 42 84 126
 ENV_ID = ALE/Pong-v5
-FRAMES = 5000000
+FRAMES = 3000000
 
 .PHONY: all setup install clean clean-run-data train-dqn-vanilla train-dqn-enhanced train-ppo train-all notebook rebuild tensorboard
 
