@@ -13,9 +13,16 @@ class DuelingDQN(nn.Module):
         self.action_dim = action_space.n
         self.dueling = dueling
 
-        # CNN backbone for feature extraction
+        # Detect channel order; assume channels-last if last dim looks like channels
+        shape = obs_space.shape
+        self.channels_last = shape[-1] in (1, 3, 4) and len(shape) == 3
+        if self.channels_last:
+            C, H, W = shape[-1], shape[0], shape[1]
+        else:
+            C, H, W = shape[0], shape[1], shape[2]
+
         self.cnn = nn.Sequential(
-            nn.Conv2d(obs_space.shape[0], 32, kernel_size=8, stride=4),
+            nn.Conv2d(C, 32, kernel_size=8, stride=4),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
@@ -24,12 +31,11 @@ class DuelingDQN(nn.Module):
             nn.Flatten(),
         )
 
-        # Compute the flattened feature size
+        # Compute flattened size with correct layout
         with torch.no_grad():
-            dummy_input = torch.as_tensor(obs_space.sample()[None]).float()
-            feature_size = np.prod(self.cnn(dummy_input).shape)
+            dummy_input = torch.zeros(1, C, H, W)
+            feature_size = int(np.prod(self.cnn(dummy_input).shape[1:]))
 
-        # Dueling network streams
         if self.dueling:
             self.advantage_stream = nn.Sequential(
                 nn.Linear(feature_size, 512),
@@ -42,20 +48,25 @@ class DuelingDQN(nn.Module):
                 nn.Linear(512, 1),
             )
         else:
-            # Standard DQN output layer
             self.q_stream = nn.Sequential(
                 nn.Linear(feature_size, 512),
                 nn.ReLU(),
                 nn.Linear(512, self.action_dim),
             )
+    
+    def _to_nchw(self, x: torch.Tensor) -> torch.Tensor:
+        """Permutes an (N, H, W, C) tensor to (N, C, H, W) if channels are last."""
+        if self.channels_last:
+            return x.permute(0, 3, 1, 2)
+        return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass to compute Q-values."""
+        x = self._to_nchw(x)
         features = self.cnn(x)
         if self.dueling:
             value = self.value_stream(features)
             advantages = self.advantage_stream(features)
-            # Combine value and advantages for Q-values
             q_values = value + (advantages - advantages.mean(dim=1, keepdim=True))
         else:
             q_values = self.q_stream(features)

@@ -207,6 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 doc
-output
+output*
 _compose.sh
 _DLMA*

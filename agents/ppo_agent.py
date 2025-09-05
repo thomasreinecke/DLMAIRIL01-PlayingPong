@@ -3,13 +3,15 @@ from typing import Dict
 import numpy as np
 import torch
 import torch.optim as optim
-import torch.nn as nn  # <-- THIS IS THE FIX
+import torch.nn as nn
 from gymnasium import Env
 from agents.base_agent import BaseAgent
 from models.ppo_model import PPOActorCritic
 
 def _obs_to_tensor(obs, device):
-    arr = np.asarray(obs, dtype=np.float32)
+    """Handle LazyFrames/ndarray → float32 tensor in [0,1], with batch dim."""
+    # handles LazyFrames via __array__ and normalizes to [0, 1]
+    arr = np.asarray(obs, dtype=np.float32) / 255.0
     return torch.from_numpy(arr).unsqueeze(0).to(device)
 
 class PPOAgent(BaseAgent):
@@ -27,7 +29,8 @@ class PPOAgent(BaseAgent):
         
         obs_shape = env.observation_space.shape
         self.obs = torch.zeros((self.rollout_len, self.num_envs) + obs_shape, dtype=torch.uint8, device="cpu")
-        self.actions = torch.zeros((self.rollout_len, self.num_envs) + env.action_space.shape, device="cpu")
+        # Store actions as 1D long tensors
+        self.actions = torch.zeros((self.rollout_len, self.num_envs), dtype=torch.long, device="cpu")
         self.log_probs = torch.zeros((self.rollout_len, self.num_envs), device="cpu")
         self.rewards = torch.zeros((self.rollout_len, self.num_envs), device="cpu")
         self.dones = torch.zeros((self.rollout_len, self.num_envs), device="cpu")
@@ -35,21 +38,28 @@ class PPOAgent(BaseAgent):
         self.step = 0
 
     def act(self, obs: np.ndarray, training: bool = True) -> int:
+        """Select an action from the policy."""
         obs_tensor = _obs_to_tensor(obs, self.device)
         with torch.no_grad():
-            action, _, _, _ = self.network.get_action_and_value(obs_tensor)
+            if training:
+                # During collection, sample from the policy
+                action, _, _, _ = self.network.get_action_and_value(obs_tensor)
+            else:
+                # During evaluation, take the best action (argmax)
+                logits = self.network.get_policy_logits(obs_tensor)
+                action = logits.argmax(dim=-1)
         return int(action.squeeze().item())
 
     def collect_rollout(self, next_obs, next_done):
         """Collect one step of experience."""
-        # Store raw uint8 obs to save memory, convert to tensor on CPU
         self.obs[self.step] = torch.as_tensor(np.asarray(next_obs), device="cpu")
         self.dones[self.step] = torch.as_tensor(next_done, device="cpu")
         with torch.no_grad():
-            # Pass obs to network on correct device
-            obs_tensor = self.obs[self.step].to(self.device).float()
+            # Normalize observations before passing to the network
+            obs_tensor = (self.obs[self.step].to(self.device).float() / 255.0)
             action, log_prob, _, value = self.network.get_action_and_value(obs_tensor)
             self.values[self.step] = value.flatten().cpu()
+        
         self.actions[self.step] = action.cpu()
         self.log_probs[self.step] = log_prob.cpu()
         return int(action.item())
@@ -65,6 +75,7 @@ class PPOAgent(BaseAgent):
 
     def train(self, next_obs, next_done) -> Dict[str, float]:
         with torch.no_grad():
+            # Normalize final observation for GAE calculation
             next_obs_tensor = _obs_to_tensor(next_obs, self.device)
             next_value = self.network.get_value(next_obs_tensor).reshape(1, -1).cpu()
             advantages = torch.zeros_like(self.rewards)
@@ -78,7 +89,7 @@ class PPOAgent(BaseAgent):
 
         b_obs = self.obs.reshape((-1,) + self.env.observation_space.shape)
         b_log_probs = self.log_probs.reshape(-1)
-        b_actions = self.actions.reshape((-1,) + self.env.action_space.shape)
+        b_actions = self.actions.reshape(-1)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         
@@ -88,8 +99,10 @@ class PPOAgent(BaseAgent):
             for start in range(0, self.batch_size, self.minibatch_size):
                 end = start + self.minibatch_size
                 mb_inds = b_inds[start:end]
-                mb_obs = b_obs[mb_inds].to(self.device).float()
-                mb_actions = b_actions[mb_inds].to(self.device).long()
+
+                # Normalize minibatch observations before passing to network
+                mb_obs = (b_obs[mb_inds].to(self.device).float() / 255.0)
+                mb_actions = b_actions[mb_inds].to(self.device)
                 mb_log_probs = b_log_probs[mb_inds].to(self.device)
                 mb_advantages = b_advantages[mb_inds].to(self.device)
                 mb_returns = b_returns[mb_inds].to(self.device)

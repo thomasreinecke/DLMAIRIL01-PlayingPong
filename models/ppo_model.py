@@ -13,9 +13,16 @@ class PPOActorCritic(nn.Module):
         super().__init__()
         self.action_dim = action_space.n
 
-        # CNN backbone for feature extraction (shared)
+        # Detect channel order; assume channels-last if last dim looks like channels
+        shape = obs_space.shape
+        self.channels_last = shape[-1] in (1, 3, 4) and len(shape) == 3
+        if self.channels_last:
+            C, H, W = shape[-1], shape[0], shape[1]
+        else:
+            C, H, W = shape[0], shape[1], shape[2]
+
         self.cnn = nn.Sequential(
-            nn.Conv2d(obs_space.shape[0], 32, kernel_size=8, stride=4),
+            nn.Conv2d(C, 32, kernel_size=8, stride=4),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
@@ -24,32 +31,43 @@ class PPOActorCritic(nn.Module):
             nn.Flatten(),
         )
 
-        # Compute the flattened feature size
+        # Compute flattened size with correct layout
         with torch.no_grad():
-            dummy_input = torch.as_tensor(obs_space.sample()[None]).float()
-            feature_size = np.prod(self.cnn(dummy_input).shape)
+            dummy_input = torch.zeros(1, C, H, W)
+            feature_size = int(np.prod(self.cnn(dummy_input).shape[1:]))
 
-        # Actor head for policy
         self.actor_head = nn.Sequential(
             nn.Linear(feature_size, 512),
             nn.ReLU(),
             nn.Linear(512, self.action_dim),
         )
 
-        # Critic head for value function
         self.critic_head = nn.Sequential(
             nn.Linear(feature_size, 512),
             nn.ReLU(),
             nn.Linear(512, 1),
         )
 
+    def _to_nchw(self, x: torch.Tensor) -> torch.Tensor:
+        """Permutes an (N, H, W, C) tensor to (N, C, H, W) if channels are last."""
+        if self.channels_last:
+            return x.permute(0, 3, 1, 2)
+        return x
+
     def get_value(self, x: torch.Tensor) -> torch.Tensor:
         """Get state value from the critic head."""
-        return self.critic_head(self.cnn(x / 255.0))
+        x = self._to_nchw(x)
+        return self.critic_head(self.cnn(x))
+
+    def get_policy_logits(self, x: torch.Tensor) -> torch.Tensor:
+        """Get policy logits from the actor head."""
+        x = self._to_nchw(x)
+        return self.actor_head(self.cnn(x))
 
     def get_action_and_value(self, x: torch.Tensor, action: torch.Tensor = None):
         """Get action, log probability, entropy, and state value."""
-        features = self.cnn(x / 255.0)
+        x = self._to_nchw(x)
+        features = self.cnn(x)
         logits = self.actor_head(features)
         probs = Categorical(logits=logits)
 

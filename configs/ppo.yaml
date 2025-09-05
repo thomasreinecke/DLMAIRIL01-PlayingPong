@@ -13,7 +13,7 @@ gradient_clip_norm: 0.5
 
 # PPO specific parameters
 rollout_len: 2048 # Number of steps to collect per environment before updating
-num_update_epochs: 10
+num_update_epochs: 4 # Reduced from 10 to a more standard value for Atari
 num_minibatches: 32
 clip_coef: 0.1 # Corresponds to epsilon in the PPO paper
 gae_lambda: 0.95
@@ -22,5 +22,5 @@ entropy_coef: 0.01
 normalize_advantages: true
 
 # Evaluation & Checkpointing
-eval_freq_frames: 25000 # Evaluate and checkpoint every x frames
+eval_freq_frames: 10000 # Evaluate and checkpoint every 10k frames
 eval_episodes: 30
