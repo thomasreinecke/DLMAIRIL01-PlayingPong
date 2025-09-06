@@ -1,0 +1,25 @@
+# configs/ppo.yaml
+# Configuration for the PPO agent
+agent_name: ppo
+algo: ppo
+
+# Training parameters
+optimizer: Adam
+learning_rate: 0.00025
+gamma: 0.99
+gradient_clip_norm: 0.5
+
+# PPO-specific parameters
+rollout_len: 2048           # steps per update (across all envs)
+num_update_epochs: 4
+num_minibatches: 32
+clip_coef: 0.1              # epsilon
+gae_lambda: 0.95
+value_loss_coef: 0.5
+entropy_coef: 0.01
+normalize_advantages: true
+target_kl: 0.02             # optional early-stop; safe default
+
+# Evaluation & checkpointing
+eval_freq_frames: 24576 # Aligned to be a multiple of rollout_len (2048 * 12)
+eval_episodes: 30

@@ -1,25 +1,24 @@
-# configs/ppo.yaml
-# Configuration for the PPO agent
+# configs/ppo.yaml  — final
 agent_name: ppo
 algo: ppo
 
 # Training parameters
 optimizer: Adam
-learning_rate: 0.00025
+learning_rate: 0.0003        # ↑ slightly to get KL into a healthy range
 gamma: 0.99
 gradient_clip_norm: 0.5
 
 # PPO-specific parameters
-rollout_len: 2048           # steps per update (across all envs)
-num_update_epochs: 4
-num_minibatches: 32
-clip_coef: 0.1              # epsilon
+rollout_len: 2048            # keep long rollouts for stable GAE with 1 env
+num_update_epochs: 4         # standard & stable
+num_minibatches: 16          # ↑ minibatch size (128) → steadier, stronger steps
+clip_coef: 0.2               # standard Atari setting; helps avoid timid updates
 gae_lambda: 0.95
 value_loss_coef: 0.5
-entropy_coef: 0.01
-normalize_advantages: true
-target_kl: 0.02             # optional early-stop; safe default
+entropy_coef: 0.01           # fine; (optional: decay to 0.001 over 1–1.5M frames)
+normalize_advantages: true   # do this once per rollout (not per minibatch) in code
+target_kl: 0.02              # safety valve; rarely triggers with settings above
 
 # Evaluation & checkpointing
-eval_freq_frames: 24576 # Aligned to be a multiple of rollout_len (2048 * 12)
+eval_freq_frames: 24576      # aligned with rollout_len * 12
 eval_episodes: 30
