@@ -5,8 +5,7 @@ export PYTORCH_ENABLE_MPS_FALLBACK=1
 VENV = .venv
 SEEDS = 42 84 126
 ENV_ID = ALE/Pong-v5
-FRAMES = 3000000
-REDUCED_FRAMES = 1500000
+FRAMES = 1500000
 
 .PHONY: all setup install clean clean-run-data train-dqn-vanilla train-dqn-enhanced train-ppo train-all notebook rebuild tensorboard
 
@@ -68,7 +67,7 @@ train-ppo: install
 	@for seed in $(SEEDS); do \
 		$(MAKE) clean-run-data agent=ppo seed=$$seed; \
 		echo "  -> Running with seed $$seed (artifacts in output/ppo_$$seed)"; \
-		$(VENV)/bin/python scripts/train.py --config configs/ppo.yaml --seed $$seed --frames $(REDUCED_FRAMES); \
+		$(VENV)/bin/python scripts/train.py --config configs/ppo.yaml --seed $$seed --frames $(FRAMES); \
 	done
 
 train-all: clean install
