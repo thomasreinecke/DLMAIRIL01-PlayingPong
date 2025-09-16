@@ -1,9 +1,0 @@
-
-output
- |-dqn_vanilla_42
-    |-results
-    |  |->metrics.csv
-    |  |->status.json
-    |-snapshots
-    |  |->checkpoint.pt (if checkpoint) / model_final.pt (if final)
-    |-tensorboard

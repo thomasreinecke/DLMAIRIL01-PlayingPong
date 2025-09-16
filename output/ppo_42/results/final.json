@@ -1,0 +1,27 @@
+{
+    "agent_name": "ppo",
+    "seed": 42,
+    "training_parameters": {
+        "total_frames": 1500000,
+        "final_epsilon": null,
+        "learning_rate": 0.0003,
+        "environment_id": "ALE/Pong-v5"
+    },
+    "performance_summary": {
+        "final_score_mean": 16.1,
+        "final_score_std": 0.6476453075908483,
+        "frames_to_threshold": 1204224,
+        "auc_at_5M_frames": 8110489.600000001
+    },
+    "computational_summary": {
+        "total_wall_clock_time_seconds": 15535.91438293457,
+        "mean_fps": 96.55048058501632,
+        "time_to_threshold_seconds": 12549.403620958328
+    },
+    "robustness_summary": {
+        "eval_return_sticky_p0_0": 20.0,
+        "eval_return_sticky_p0_25": 16.1,
+        "eval_return_sticky_p0_5": 2.7
+    },
+    "final_model_path": "output/ppo_42/snapshots/model_final.pt"
+}

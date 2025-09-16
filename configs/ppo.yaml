@@ -2,23 +2,29 @@
 agent_name: ppo
 algo: ppo
 
+# -------------------
 # Training parameters
-optimizer: Adam
-learning_rate: 0.0003        # ↑ slightly to get KL into a healthy range
-gamma: 0.99
-gradient_clip_norm: 0.5
+# -------------------
+optimizer: Adam               # Optimizer used for training
+learning_rate: 0.0003         # PPO default; tuned to maintain stable KL divergence
+gamma: 0.99                   # Discount factor for future rewards
+gradient_clip_norm: 0.5       # Gradient clipping (lower than DQN; avoids instability)
 
+# -------------------
 # PPO-specific parameters
-rollout_len: 2048            # keep long rollouts for stable GAE with 1 env
-num_update_epochs: 4         # standard & stable
-num_minibatches: 16          # ↑ minibatch size (128) → steadier, stronger steps
-clip_coef: 0.2               # standard Atari setting; helps avoid timid updates
-gae_lambda: 0.95
-value_loss_coef: 0.5
-entropy_coef: 0.01           # fine; (optional: decay to 0.001 over 1–1.5M frames)
-normalize_advantages: true   # do this once per rollout (not per minibatch) in code
-target_kl: 0.02              # safety valve; rarely triggers with settings above
+# -------------------
+rollout_len: 2048             # Number of steps per rollout (longer rollouts stabilize GAE)
+num_update_epochs: 4          # Number of passes over each rollout
+num_minibatches: 16           # Minibatches per epoch (128 samples each for 2048 rollout)
+clip_coef: 0.2                # Clipping range for PPO objective (standard for Atari)
+gae_lambda: 0.95              # GAE tradeoff between bias/variance
+value_loss_coef: 0.5          # Weight for value loss in total loss
+entropy_coef: 0.01            # Encourages exploration (can be annealed during training)
+normalize_advantages: true    # Normalize advantages once per rollout (variance reduction)
+target_kl: 0.02               # Early stop criterion if KL divergence grows too large
 
+# -------------------
 # Evaluation & checkpointing
-eval_freq_frames: 24576      # aligned with rollout_len * 12
-eval_episodes: 30
+# -------------------
+eval_freq_frames: 24576       # Evaluate every 12 rollouts (aligned with rollout_len * 12)
+eval_episodes: 30             # Number of episodes averaged per evaluation

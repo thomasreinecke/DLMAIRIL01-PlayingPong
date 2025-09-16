@@ -1,0 +1,27 @@
+{
+    "agent_name": "dqn_enhanced",
+    "seed": 126,
+    "training_parameters": {
+        "total_frames": 1500000,
+        "final_epsilon": 0.09999999999999998,
+        "learning_rate": 0.0001,
+        "environment_id": "ALE/Pong-v5"
+    },
+    "performance_summary": {
+        "final_score_mean": -11.14,
+        "final_score_std": 2.2192841688756815,
+        "frames_to_threshold": null,
+        "auc_at_5M_frames": -26000000.000000004
+    },
+    "computational_summary": {
+        "total_wall_clock_time_seconds": 12809.973509311676,
+        "mean_fps": 117.0962608868502,
+        "time_to_threshold_seconds": null
+    },
+    "robustness_summary": {
+        "eval_return_sticky_p0_0": 20.833333333333332,
+        "eval_return_sticky_p0_25": -11.14,
+        "eval_return_sticky_p0_5": -14.233333333333333
+    },
+    "final_model_path": "output/dqn_enhanced_126/snapshots/model_final.pt"
+}

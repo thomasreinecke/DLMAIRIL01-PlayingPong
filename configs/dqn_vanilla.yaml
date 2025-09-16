@@ -3,28 +3,38 @@
 agent_name: dqn_vanilla
 algo: dqn
 
+# -------------------
 # Model parameters
-dueling: false
+# -------------------
+dueling: false                # Do not use Dueling architecture (pure single-stream Q-net)
 
+# -------------------
 # Training parameters
-optimizer: Adam
-learning_rate: 0.00025 # As per Mnih et al. 2015
-gamma: 0.99
-batch_size: 32
-replay_buffer_size: 1000000
-target_update_freq: 10000 # In agent steps (parameter updates)
-gradient_clip_norm: 10.0
-huber_loss_delta: 1.0
+# -------------------
+optimizer: Adam               # Optimizer used for training
+learning_rate: 0.00025        # Learning rate (canonical value from Mnih et al. 2015)
+gamma: 0.99                   # Discount factor for future rewards
+batch_size: 32                # Number of transitions sampled per training step
+replay_buffer_size: 1000000   # Capacity of replay buffer (transitions stored)
+target_update_freq: 10000     # Frequency (in gradient updates) to sync target network
+gradient_clip_norm: 10.0      # Max global norm for gradient clipping
+huber_loss_delta: 1.0         # Delta parameter for Huber loss (robust to outliers)
 
+# -------------------
 # Q-Learning parameters
-double_q: false
+# -------------------
+double_q: false               # Do not use Double Q-learning (vanilla formulation)
 
+# -------------------
 # Exploration parameters
-epsilon_start: 1.0
-epsilon_end: 0.1
-epsilon_decay_frames: 1000000
-learning_starts: 50000 # Number of frames to populate replay buffer before learning
+# -------------------
+epsilon_start: 1.0            # Initial epsilon (100% random actions)
+epsilon_end: 0.1              # Final epsilon (min exploration rate)
+epsilon_decay_frames: 1000000 # Number of frames over which epsilon decays linearly
+learning_starts: 50000        # Frames collected before starting training (fill buffer)
 
+# -------------------
 # Evaluation & Checkpointing
-eval_freq_frames: 25000 # Evaluate and checkpoint every x frames
-eval_episodes: 30
+# -------------------
+eval_freq_frames: 25000       # How often (in frames) to run evaluation + checkpoint
+eval_episodes: 30             # Number of episodes to average per evaluation
